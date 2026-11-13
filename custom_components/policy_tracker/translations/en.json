@@ -9,6 +9,10 @@
           "profile_dir": "Directory for persistent browser profiles",
           "scan_interval_hours": "Hours between scrapes"
         }
+      },
+      "credentials": {
+        "title": "Account credentials",
+        "description": "Enter the credentials for: {accounts}. These are stored in Home Assistant's own config entry storage, not in the accounts YAML file. Each field below is named <account id>__<credential name>, matching a value_credential in that account's login_steps."
       }
     },
     "error": {

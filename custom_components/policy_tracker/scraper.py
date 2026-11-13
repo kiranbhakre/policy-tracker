@@ -70,12 +70,20 @@ def find_gbp_amount_after_label(full_text: str, label: str) -> Optional[Decimal]
 
 @dataclass(frozen=True)
 class LoginStep:
-    """One step of a login flow: fill a field, click something, or wait."""
+    """One step of a login flow: fill a field, click something, or wait.
+
+    A fill step's value comes from exactly one of: a literal `value`,
+    an environment variable named by `value_env`, or a credential
+    named by `value_credential` - the last is specific to this Home
+    Assistant integration, collected through its config flow and
+    stored in Home Assistant's own config entry, not the environment.
+    """
 
     action: str  # "fill", "click", or "wait"
     selector: Optional[str] = None
     value: Optional[str] = None
     value_env: Optional[str] = None
+    value_credential: Optional[str] = None
     timeout_ms: Optional[int] = None
     wait_ms: Optional[int] = None
 
@@ -202,11 +210,39 @@ def _require_env(var_name: str) -> str:
     return value
 
 
-def _run_login_steps(page: Page, steps: tuple[LoginStep, ...]) -> None:
+def credentials_needed(accounts: list[TrackerAccount]) -> dict[str, list[str]]:
+    """Map each account id to the credential names its login steps reference.
+
+    Used by the config flow to build a "type in your username/password"
+    form with exactly the fields each account's login_steps actually
+    need - accounts with no value_credential steps (e.g. ones still
+    using value_env) are left out entirely.
+    """
+    needed: dict[str, list[str]] = {}
+    for account in accounts:
+        names = sorted({step.value_credential for step in account.login_steps if step.value_credential})
+        if names:
+            needed[account.id] = names
+    return needed
+
+
+def _resolve_fill_value(step: LoginStep, credentials: dict[str, str]) -> str:
+    if step.value_credential:
+        if step.value_credential not in credentials:
+            raise ConfigError(f"missing credential {step.value_credential!r}")
+        return credentials[step.value_credential]
+    if step.value_env:
+        return _require_env(step.value_env)
+    return step.value or ""
+
+
+def _run_login_steps(
+    page: Page, steps: tuple[LoginStep, ...], credentials: Optional[dict[str, str]] = None
+) -> None:
+    credentials = credentials or {}
     for step in steps:
         if step.action == "fill":
-            value = _require_env(step.value_env) if step.value_env else (step.value or "")
-            page.fill(step.selector, value)
+            page.fill(step.selector, _resolve_fill_value(step, credentials))
         elif step.action == "click":
             page.click(step.selector)
         elif step.action == "wait":
@@ -248,8 +284,15 @@ def _extract_field(page: Page, tracker_field: TrackerField) -> Decimal:
     return amount
 
 
-def scrape_account(account: TrackerAccount, profile_dir: str) -> AccountResult:
+def scrape_account(
+    account: TrackerAccount, profile_dir: str, credentials: Optional[dict[str, str]] = None
+) -> AccountResult:
     """Run one account's full scrape in a headless browser.
+
+    `credentials` holds this one account's username/password etc.,
+    collected through the config flow and keyed by the names its
+    login steps reference via value_credential - not needed for
+    accounts whose login steps use value_env/value instead.
 
     Never attempts to answer a one-time code prompt - if one appears,
     the result is otp_required. Recovering from that still requires
@@ -260,7 +303,7 @@ def scrape_account(account: TrackerAccount, profile_dir: str) -> AccountResult:
     try:
         with _account_page(account, profile_dir, headless=True) as page:
             page.goto(account.login_url)
-            _run_login_steps(page, account.login_steps)
+            _run_login_steps(page, account.login_steps, credentials)
 
             if _otp_requested(page, account.otp_selector):
                 return AccountResult(status="otp_required")
@@ -285,9 +328,21 @@ def scrape_account(account: TrackerAccount, profile_dir: str) -> AccountResult:
         return AccountResult(status="error", error_message=str(exc))
 
 
-def scrape_all(accounts: list[TrackerAccount], profile_dir: str) -> dict[str, AccountResult]:
-    """Scrape every account independently; one failing never skips the rest."""
-    return {account.id: scrape_account(account, profile_dir) for account in accounts}
+def scrape_all(
+    accounts: list[TrackerAccount],
+    profile_dir: str,
+    credentials: Optional[dict[str, dict[str, str]]] = None,
+) -> dict[str, AccountResult]:
+    """Scrape every account independently; one failing never skips the rest.
+
+    `credentials` is keyed by account id, each value the dict
+    scrape_account() expects for that one account.
+    """
+    credentials = credentials or {}
+    return {
+        account.id: scrape_account(account, profile_dir, credentials.get(account.id))
+        for account in accounts
+    }
 
 
 def merge_results(

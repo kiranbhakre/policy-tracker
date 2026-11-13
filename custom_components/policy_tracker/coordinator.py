@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_ACCOUNTS_FILE,
+    CONF_CREDENTIALS,
     CONF_PROFILE_DIR,
     CONF_SCAN_INTERVAL_HOURS,
     DEFAULT_SCAN_INTERVAL_HOURS,
@@ -26,6 +27,11 @@ class PolicyTrackerCoordinator(DataUpdateCoordinator[dict[str, AccountResult]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.accounts: list[TrackerAccount] = load_accounts(entry.data[CONF_ACCOUNTS_FILE])
         self.profile_dir: str = entry.data[CONF_PROFILE_DIR]
+        # Credentials collected by the config flow's "credentials" step
+        # (keyed by account id), for accounts whose login steps use
+        # value_credential instead of value_env. Empty for a setup
+        # where every account still authenticates via env vars.
+        self.credentials: dict[str, dict[str, str]] = entry.data.get(CONF_CREDENTIALS, {})
         hours = entry.data.get(CONF_SCAN_INTERVAL_HOURS, DEFAULT_SCAN_INTERVAL_HOURS)
         super().__init__(
             hass,
@@ -36,7 +42,9 @@ class PolicyTrackerCoordinator(DataUpdateCoordinator[dict[str, AccountResult]]):
 
     async def _async_update_data(self) -> dict[str, AccountResult]:
         try:
-            new_results = await self.hass.async_add_executor_job(scrape_all, self.accounts, self.profile_dir)
+            new_results = await self.hass.async_add_executor_job(
+                scrape_all, self.accounts, self.profile_dir, self.credentials
+            )
         except ConfigError as exc:
             raise UpdateFailed(str(exc)) from exc
 

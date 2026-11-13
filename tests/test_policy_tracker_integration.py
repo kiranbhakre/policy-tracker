@@ -23,12 +23,16 @@ sys.path.insert(0, str(INTEGRATION_DIR))
 from scraper import (  # noqa: E402
     AccountResult,
     ConfigError,
+    LoginStep,
+    TrackerAccount,
+    credentials_needed,
     find_gbp_amount_after_label,
     load_accounts,
     merge_results,
     parse_account,
     parse_amount,
 )
+from scraper import _resolve_fill_value  # noqa: E402
 
 
 # --- manifest.json sanity ------------------------------------------------
@@ -161,3 +165,83 @@ def test_merge_results_has_nothing_to_fall_back_to_on_first_run():
     merged = merge_results({}, {"acc1": AccountResult(status="error", error_message="boom")})
     assert merged["acc1"].status == "error"
     assert merged["acc1"].values == {}
+
+
+# --- credentials_needed: drives the config flow's dynamic credentials step
+
+
+def _account_with_steps(account_id: str, *steps: LoginStep) -> TrackerAccount:
+    return TrackerAccount(
+        id=account_id,
+        name=account_id,
+        provider="Provider",
+        type="pension",
+        login_url="https://example.invalid/login",
+        logged_in_selector="#summary",
+        login_steps=tuple(steps),
+    )
+
+
+def test_credentials_needed_collects_value_credential_fields_per_account():
+    accounts = [
+        _account_with_steps(
+            "lg_pension",
+            LoginStep(action="fill", selector="#user", value_credential="username"),
+            LoginStep(action="fill", selector="#pass", value_credential="password"),
+        )
+    ]
+    assert credentials_needed(accounts) == {"lg_pension": ["password", "username"]}
+
+
+def test_credentials_needed_ignores_accounts_using_value_env_only():
+    accounts = [_account_with_steps("acc1", LoginStep(action="fill", selector="#user", value_env="ACC1_USER"))]
+    assert credentials_needed(accounts) == {}
+
+
+def test_credentials_needed_deduplicates_repeated_names():
+    accounts = [
+        _account_with_steps(
+            "acc1",
+            LoginStep(action="fill", selector="#user", value_credential="username"),
+            LoginStep(action="fill", selector="#user2", value_credential="username"),
+        )
+    ]
+    assert credentials_needed(accounts) == {"acc1": ["username"]}
+
+
+def test_credentials_needed_handles_multiple_accounts_independently():
+    accounts = [
+        _account_with_steps("acc1", LoginStep(action="fill", selector="#user", value_credential="username")),
+        _account_with_steps("acc2", LoginStep(action="fill", selector="#user", value_env="ACC2_USER")),
+    ]
+    assert credentials_needed(accounts) == {"acc1": ["username"]}
+
+
+# --- _resolve_fill_value: value_credential / value_env / value priority
+
+
+def test_resolve_fill_value_prefers_value_credential():
+    step = LoginStep(action="fill", selector="#x", value_credential="password")
+    assert _resolve_fill_value(step, {"password": "s3cret"}) == "s3cret"
+
+
+def test_resolve_fill_value_raises_when_credential_missing():
+    step = LoginStep(action="fill", selector="#x", value_credential="password")
+    with pytest.raises(ConfigError, match="password"):
+        _resolve_fill_value(step, {})
+
+
+def test_resolve_fill_value_falls_back_to_literal_value():
+    step = LoginStep(action="fill", selector="#x", value="literal")
+    assert _resolve_fill_value(step, {}) == "literal"
+
+
+def test_resolve_fill_value_defaults_to_empty_string():
+    step = LoginStep(action="fill", selector="#x")
+    assert _resolve_fill_value(step, {}) == ""
+
+
+def test_resolve_fill_value_falls_back_to_value_env(monkeypatch):
+    monkeypatch.setenv("TEST_ACCOUNT_USERNAME", "from-env")
+    step = LoginStep(action="fill", selector="#x", value_env="TEST_ACCOUNT_USERNAME")
+    assert _resolve_fill_value(step, {}) == "from-env"

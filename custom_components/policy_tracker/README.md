@@ -87,6 +87,13 @@ or by hand: Settings > Devices & services > Add integration > search
 If the accounts file can't be read or doesn't parse, the form shows an
 error in place rather than failing silently.
 
+If any account's `login_steps` use `value_credential` (see
+[accounts.example.yaml](accounts.example.yaml)), a second screen
+appears asking for exactly those - e.g. "lg_pension__username" and
+"lg_pension__password" - before the entry is created. Accounts using
+`value_env` instead don't need this and the screen is skipped
+entirely if no account needs it.
+
 This creates one device per account, with:
 
 - a monetary sensor per configured field
@@ -98,11 +105,27 @@ their last good value.
 
 ## Credentials
 
-Login step values referenced by `value_env` are read from the
-environment Home Assistant itself was started with (e.g. an
-`EnvironmentFile=` in Core's systemd unit, or `env_file:` in a
-Container's `docker-compose.yml`) - never typed into the config flow
-and never stored by this integration.
+Two ways to supply a login step's value, and you can mix both across
+accounts in the same accounts file:
+
+- **`value_credential: <name>`** - typed into the config flow's
+  "Account credentials" screen (masked for anything named like
+  "password"/"secret"/"pin") and stored in Home Assistant's own
+  config entry storage (`.storage/core.config_entries` on the HA
+  host) - local to that install, not in the accounts YAML file, not
+  in git. This is what [accounts.example.yaml](accounts.example.yaml)
+  uses, and the simplest option for most people.
+- **`value_env: <VAR_NAME>`** - read from the environment Home
+  Assistant itself was started with (e.g. an `EnvironmentFile=` in
+  Core's systemd unit, or `env_file:` in a Container's
+  `docker-compose.yml`). Never typed into the config flow, never
+  stored by this integration at all - credentials exist only in the
+  process environment. Use this if you'd rather not have Home
+  Assistant's own storage hold a given account's password.
+
+Either way, credentials are never written to the accounts YAML file
+itself - only a name (`value_credential`'s name, or `value_env`'s
+variable name) is.
 
 ## Handling a one-time code
 

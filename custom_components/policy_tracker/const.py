@@ -5,6 +5,7 @@ DOMAIN = "policy_tracker"
 CONF_ACCOUNTS_FILE = "accounts_file"
 CONF_PROFILE_DIR = "profile_dir"
 CONF_SCAN_INTERVAL_HOURS = "scan_interval_hours"
+CONF_CREDENTIALS = "credentials"  # {account_id: {credential_name: value}}
 
 DEFAULT_PROFILE_DIR = "policy_tracker_profiles"
 DEFAULT_SCAN_INTERVAL_HOURS = 168  # weekly, matching the standalone script's timer
