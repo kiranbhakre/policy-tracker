@@ -1,8 +1,8 @@
 """Sensor platform for the Policy Tracker integration.
 
-One device per account, with a monetary sensor per configured field,
-a diagnostic status sensor (ok/otp_required/error), and a diagnostic
-last-updated timestamp sensor.
+One config entry = one account = one device, with a monetary sensor
+per configured field, a diagnostic status sensor (ok/otp_required/
+error), and a diagnostic last-updated timestamp sensor.
 """
 
 from __future__ import annotations
@@ -24,13 +24,13 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     coordinator: PolicyTrackerCoordinator = hass.data[DOMAIN][entry.entry_id]
+    account = coordinator.account
 
-    entities: list[SensorEntity] = []
-    for account in coordinator.accounts:
-        entities.append(PolicyTrackerStatusSensor(coordinator, account))
-        entities.append(PolicyTrackerLastUpdatedSensor(coordinator, account))
-        for tracker_field in account.fields:
-            entities.append(PolicyTrackerFieldSensor(coordinator, account, tracker_field))
+    entities: list[SensorEntity] = [
+        PolicyTrackerStatusSensor(coordinator, account),
+        PolicyTrackerLastUpdatedSensor(coordinator, account),
+    ]
+    entities.extend(PolicyTrackerFieldSensor(coordinator, account, f) for f in account.fields)
 
     async_add_entities(entities)
 
@@ -52,9 +52,7 @@ class _PolicyTrackerEntity(CoordinatorEntity[PolicyTrackerCoordinator], SensorEn
 
     @property
     def _result(self):
-        if self.coordinator.data is None:
-            return None
-        return self.coordinator.data.get(self._account.id)
+        return self.coordinator.data
 
 
 class PolicyTrackerFieldSensor(_PolicyTrackerEntity):

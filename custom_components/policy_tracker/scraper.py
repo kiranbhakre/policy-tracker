@@ -6,6 +6,12 @@ inside its own custom_components/<domain> folder - it cannot import
 modules from outside that tree. Keep this in sync with tracker.py's
 equivalent functions if the scraping behaviour changes in one place.
 
+Account definitions come entirely from the config flow (one account
+per config entry) - nothing here reads a YAML file. parse_account()
+still takes a plain dict because that's the shape the config flow
+assembles and the shape its own validation already understands; it
+just no longer comes from disk.
+
 Every function here is synchronous (Playwright's sync API). Call
 scrape_account/scrape_all only from a Home Assistant executor job
 (hass.async_add_executor_job), never directly on the event loop.
@@ -23,7 +29,6 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Iterator, Optional
 
-import yaml
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 _LOGGER = logging.getLogger(__name__)
@@ -167,22 +172,6 @@ def parse_account(raw: dict) -> TrackerAccount:
         otp_selector=raw.get("otp_selector"),
         fields=tuple(fields),
     )
-
-
-def load_accounts(accounts_file: str) -> list[TrackerAccount]:
-    """Load and validate every account from the accounts YAML file.
-
-    Uses the same file format as the standalone tracker.py's
-    config.yaml. Raises ConfigError on the first invalid account -
-    this runs once during config flow setup, where failing fast with
-    a clear message is more useful than silently skipping an account.
-    """
-    with open(accounts_file, encoding="utf-8") as fh:
-        raw = yaml.safe_load(fh) or {}
-    raw_accounts = raw.get("accounts", [])
-    if not raw_accounts:
-        raise ConfigError(f"{accounts_file} defines no accounts")
-    return [parse_account(entry) for entry in raw_accounts]
 
 
 # --- Browser automation ------------------------------------------------

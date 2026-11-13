@@ -71,30 +71,38 @@ step is why this integration doesn't work everywhere).
 
 ### Step 3: add the integration
 
+No file involved - **one config entry is one account**, built
+entirely through the setup wizard. Add the integration again for
+each additional pension/policy.
+
 [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=policy_tracker)
 
 or by hand: Settings > Devices & services > Add integration > search
-"Policy Tracker". Provide:
+"Policy Tracker". The wizard has up to four screens:
 
-- **Path to accounts YAML file** - the exact same format as the
-  standalone script's `config.yaml` (see
-  [config.example.yaml](../../config.example.yaml)): one entry per
-  account with its login steps, OTP/logged-in selectors, and fields.
-- **Directory for persistent browser profiles** - where Chromium's
-  per-account session cookies are stored.
-- **Hours between scrapes** - defaults to 168 (weekly).
+1. **Account basics** - name, provider, type, login page URL,
+   optional separate values page URL, a CSS selector confirming
+   login succeeded, an optional CSS selector for a one-time-code
+   prompt, the browser profile directory, and hours between scrapes
+   (default 168, weekly).
+2. **Login steps** - one at a time: `fill` (needs a selector and a
+   value source - credential/literal/env), `click` (needs a
+   selector), or `wait` (for a selector, or a fixed delay if left
+   blank). Check "Add another login step" to keep going; uncheck it
+   on the last one.
+3. **Fields** - one at a time: an ID, then either a label (the first
+   GBP amount found after that text) or a CSS selector. Same
+   "add another" pattern.
+4. **Credentials** - only appears if any login step's value source
+   was "credential" - exactly those fields, nothing else, masked for
+   anything named like a password.
 
-If the accounts file can't be read or doesn't parse, the form shows an
-error in place rather than failing silently.
+Each screen validates what it collected before letting you continue -
+e.g. a `fill` step with no selector, or a field with neither a label
+nor a selector, shows an error in place rather than failing silently
+later.
 
-If any account's `login_steps` use `value_credential` (see
-[accounts.example.yaml](accounts.example.yaml)), a second screen
-appears asking for exactly those - e.g. "lg_pension__username" and
-"lg_pension__password" - before the entry is created. Accounts using
-`value_env` instead don't need this and the screen is skipped
-entirely if no account needs it.
-
-This creates one device per account, with:
+This creates one device for the account, with:
 
 - a monetary sensor per configured field
 - a diagnostic `status` sensor (`ok` / `otp_required` / `error`)
@@ -105,41 +113,58 @@ their last good value.
 
 ## Credentials
 
-Two ways to supply a login step's value, and you can mix both across
-accounts in the same accounts file:
+For each login step, the "Login steps" screen's value source picks
+how its value is supplied - you can mix sources across steps:
 
-- **`value_credential: <name>`** - typed into the config flow's
-  "Account credentials" screen (masked for anything named like
-  "password"/"secret"/"pin") and stored in Home Assistant's own
-  config entry storage (`.storage/core.config_entries` on the HA
-  host) - local to that install, not in the accounts YAML file, not
-  in git. This is what [accounts.example.yaml](accounts.example.yaml)
-  uses, and the simplest option for most people.
-- **`value_env: <VAR_NAME>`** - read from the environment Home
-  Assistant itself was started with (e.g. an `EnvironmentFile=` in
-  Core's systemd unit, or `env_file:` in a Container's
-  `docker-compose.yml`). Never typed into the config flow, never
-  stored by this integration at all - credentials exist only in the
-  process environment. Use this if you'd rather not have Home
-  Assistant's own storage hold a given account's password.
-
-Either way, credentials are never written to the accounts YAML file
-itself - only a name (`value_credential`'s name, or `value_env`'s
-variable name) is.
+- **credential** - typed into the "Account credentials" screen
+  (masked for anything named like "password"/"secret"/"pin") and
+  stored in Home Assistant's own config entry storage
+  (`.storage/core.config_entries` on the HA host) - local to that
+  install. The simplest option for most people.
+- **env** - read from the environment Home Assistant itself was
+  started with (e.g. an `EnvironmentFile=` in Core's systemd unit, or
+  `env_file:` in a Container's `docker-compose.yml`). Never typed
+  into the wizard, never stored by this integration at all -
+  credentials exist only in the process environment. Use this if
+  you'd rather Home Assistant's own storage never hold a given
+  account's password.
+- **literal** - a fixed, non-secret value typed straight into the
+  wizard (e.g. a security-question answer that isn't actually
+  sensitive). Stored the same place as "credential".
 
 ## Handling a one-time code
 
 Home Assistant has no way to show you a visible browser to type a
-one-time code into. If an account's status sensor shows
-`otp_required`, fix it the same way as the standalone script: run
+one-time code into - nothing built into this integration can fix
+that. If an account's status sensor shows `otp_required`, recover it
+with the project's standalone script instead, which can open a
+visible browser:
 
-```bash
-python3 tracker.py --interactive <account_id>
-```
+1. Write a small `config.yaml` for the project's `tracker.py`
+   containing just this one account - the same login URL, selectors,
+   and login steps you entered in the wizard (swap `value_credential`
+   for `value_env` or a literal `value`; `tracker.py` doesn't know
+   about `value_credential`, that's specific to this integration's
+   config flow). See [config.example.yaml](../../config.example.yaml)
+   for the shape.
+2. Set `profile_dir` in that file to the *same* directory you gave
+   this integration, and the account's `id` to anything - it just
+   needs to match between this file and the `--interactive` command
+   below.
+3. Run:
 
-pointed at a `config.yaml` whose `profile_dir` matches the directory
-you gave this integration, then wait for the next scheduled scrape (or
-reload this integration) to pick up the saved session.
+   ```bash
+   python3 tracker.py --config config.yaml --interactive <that id>
+   ```
+
+   enter the one-time code in the browser window that opens, then
+   wait for this integration's next scheduled scrape (or reload the
+   integration) to pick up the saved session.
+
+This is the one place this integration still leans on the standalone
+script and its config file format - a visible browser is the only
+way to answer a one-time code, and Home Assistant itself can't show
+you one.
 
 ## Which option should I use?
 

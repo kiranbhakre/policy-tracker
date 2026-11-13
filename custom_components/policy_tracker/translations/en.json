@@ -2,22 +2,56 @@
   "config": {
     "step": {
       "user": {
-        "title": "Set up Policy Tracker",
-        "description": "Point this at an accounts YAML file (same format as the standalone tracker.py's config.yaml) describing which pension/policy portals to scrape.",
+        "title": "Add a pension or policy account",
+        "description": "This sets up one account. Add the integration again for each additional pension/policy. Start with the login page's URL and the CSS selector for something that only appears once you're logged in.",
         "data": {
-          "accounts_file": "Path to accounts YAML file",
+          "name": "Account name",
+          "provider": "Provider",
+          "type": "Type",
+          "login_url": "Login page URL",
+          "values_url": "Page to read values from (optional, if different from the login page)",
+          "logged_in_selector": "CSS selector confirming login succeeded",
+          "otp_selector": "CSS selector for a one-time code prompt (optional)",
           "profile_dir": "Directory for persistent browser profiles",
           "scan_interval_hours": "Hours between scrapes"
         }
       },
+      "login_step": {
+        "title": "Login step",
+        "description": "Add one step at a time, in the order they should run. \"fill\" needs a selector and a value source; \"click\" needs a selector; \"wait\" waits for a selector to appear, or for a fixed number of milliseconds if you leave the selector blank.",
+        "data": {
+          "action": "Action",
+          "selector": "CSS selector",
+          "value_source": "Value source (fill only): credential / literal / env",
+          "credential_name": "Credential name (if value source is credential)",
+          "literal_value": "Literal value (if value source is literal)",
+          "env_var_name": "Environment variable name (if value source is env)",
+          "wait_ms": "Milliseconds to wait (wait only, if no selector)",
+          "add_another": "Add another login step"
+        }
+      },
+      "field": {
+        "title": "Value to read",
+        "description": "Add one field at a time. A label is matched against the page's visible text and the first amount after it is used; a selector reads one element's text directly.",
+        "data": {
+          "field_id": "Field ID (e.g. fund_value)",
+          "extraction_method": "Find this field by",
+          "label": "Label text (if finding by label)",
+          "selector": "CSS selector (if finding by selector)",
+          "add_another": "Add another field"
+        }
+      },
       "credentials": {
         "title": "Account credentials",
-        "description": "Enter the credentials for: {accounts}. These are stored in Home Assistant's own config entry storage, not in the accounts YAML file. Each field below is named <account id>__<credential name>, matching a value_credential in that account's login_steps."
+        "description": "Enter the credentials this account's login steps need. These are stored in Home Assistant's own config entry storage."
       }
     },
     "error": {
-      "invalid_accounts_file": "That file could not be parsed as a valid accounts config.",
-      "accounts_file_not_found": "That file could not be found or read."
+      "incomplete_login_step": "That step is missing something it needs - a selector, or a value for the chosen value source.",
+      "incomplete_field": "That field needs a label (if finding by label) or a selector (if finding by selector)."
+    },
+    "abort": {
+      "unknown": "Something unexpected went wrong building this account. Check the Home Assistant log for details."
     }
   }
 }

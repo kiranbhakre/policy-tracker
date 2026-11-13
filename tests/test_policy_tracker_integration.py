@@ -9,7 +9,6 @@ cover merge_results(), which is specific to the coordinator's
 
 import json
 import sys
-import textwrap
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -27,7 +26,6 @@ from scraper import (  # noqa: E402
     TrackerAccount,
     credentials_needed,
     find_gbp_amount_after_label,
-    load_accounts,
     merge_results,
     parse_account,
     parse_amount,
@@ -72,7 +70,7 @@ def test_find_gbp_amount_after_label_matches_case_insensitively():
     assert find_gbp_amount_after_label(text, "total fund value") == Decimal("12345.67")
 
 
-# --- parse_account / load_accounts ---------------------------------------
+# --- parse_account ---------------------------------------------------
 
 
 def _valid_raw_account(**overrides) -> dict:
@@ -99,35 +97,6 @@ def test_parse_account_rejects_field_with_no_label_or_selector():
     raw = _valid_raw_account(fields=[{"id": "fund_value"}])
     with pytest.raises(ConfigError, match="fund_value"):
         parse_account(raw)
-
-
-def test_load_accounts_rejects_file_with_no_accounts(tmp_path):
-    config_path = tmp_path / "accounts.yaml"
-    config_path.write_text("accounts: []\n")
-    with pytest.raises(ConfigError, match="no accounts"):
-        load_accounts(str(config_path))
-
-
-def test_load_accounts_parses_every_entry(tmp_path):
-    config_path = tmp_path / "accounts.yaml"
-    config_path.write_text(
-        textwrap.dedent(
-            """
-            accounts:
-              - id: acc1
-                name: Account One
-                provider: Provider One
-                type: pension
-                login_url: "https://example.invalid/login"
-                logged_in_selector: "#summary"
-                fields:
-                  - id: fund_value
-                    label: "Fund value"
-            """
-        )
-    )
-    accounts = load_accounts(str(config_path))
-    assert [a.id for a in accounts] == ["acc1"]
 
 
 # --- merge_results: the "keep the last good value on failure" rule -------
