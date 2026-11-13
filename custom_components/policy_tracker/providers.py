@@ -16,21 +16,19 @@ from __future__ import annotations
 
 # Legal & General's "My Account" portal (myaccount.landg.com) is a
 # ForgeRock-based multi-step login journey: one page for the
-# email/User ID, then (believed, not yet confirmed against a real
-# login) a separate page for the password reusing the same input id,
-# then a "Continue" submit on each. Confirmed by direct inspection on
-# 2026-11-13:
+# email/User ID, then a separate page for the password, then a
+# "Continue" submit on each. Confirmed by direct inspection on
+# 2026-11-13, including a real login through to the password page:
 #   - the identifier field's id is "lg-input-0"
 #   - the submit button has no stable id, just type="submit"
+#   - the password field has its own stable selector,
+#     [data-testid="password"] - a different element from the
+#     identifier field, not a reused id as originally guessed
 #   - [data-testid="logout-nav-link"] exists only once logged in
 #   - the workplace pension's balance is the first GBP amount after
 #     the text "Workplace Pension" on the account dashboard
 #
-# NOT confirmed (never completed a real login without credentials):
-#   - the password page's actual selector - guessed as the same
-#     "#lg-input-0", since ForgeRock journeys often reuse a step's
-#     input id across pages. If this account's status ends up
-#     "error", this is the first thing to check and fix here.
+# NOT confirmed (never completed a login past the password page):
 #   - whether/when a one-time-code page appears, and its selector -
 #     left as None, so a code prompt will currently surface as
 #     status "error" rather than "otp_required" until confirmed.
@@ -44,7 +42,7 @@ LEGAL_AND_GENERAL_WORKPLACE_PENSION: dict = {
         {"action": "fill", "selector": "#lg-input-0", "value_credential": "username"},
         {"action": "click", "selector": "button[type=submit]"},
         {"action": "wait", "wait_ms": 2000},
-        {"action": "fill", "selector": "#lg-input-0", "value_credential": "password"},
+        {"action": "fill", "selector": '[data-testid="password"]', "value_credential": "password"},
         {"action": "click", "selector": "button[type=submit]"},
     ],
     "fields": [

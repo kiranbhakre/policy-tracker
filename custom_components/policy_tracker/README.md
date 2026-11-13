@@ -86,15 +86,15 @@ code - the only screen left asks for a name, your email/User ID, and
 password. Currently built in:
 
 - **Legal & General - Workplace Pension** - login URL, the identifier
-  field, and the logged-in marker were confirmed by directly
-  inspecting `myaccount.landg.com`. The password field's selector
-  **is an educated guess, not confirmed** - L&G's login is a
-  multi-step journey and the password page was never actually seen
-  (that needs real credentials, which this project never enters on
-  your behalf). If this account's status sensor ends up `error`
-  rather than `ok`, that selector in `providers.py` is the first
-  thing to fix - it's a plain Python dict, easier to correct than
-  re-discovering through the UI.
+  field, the password field, and the logged-in marker were all
+  confirmed by directly inspecting `myaccount.landg.com`, including a
+  real login through to the password page. The one remaining unknown
+  is whether/when a one-time-code page appears and its selector -
+  `otp_selector` is left as `None`, so a code prompt currently
+  surfaces as status `error` rather than `otp_required` until that's
+  confirmed too. If this account's status sensor ends up `error`
+  on first run, check `providers.py` - it's a plain Python dict,
+  easy to correct.
 
 **Custom / other provider.** Falls through to the full generic
 wizard - up to four more screens:
