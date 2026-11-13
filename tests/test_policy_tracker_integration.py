@@ -19,6 +19,7 @@ INTEGRATION_DIR = Path(__file__).resolve().parent.parent / "custom_components" /
 sys.path.insert(0, str(INTEGRATION_DIR.parent.parent))
 sys.path.insert(0, str(INTEGRATION_DIR))
 
+from providers import CUSTOM_PROVIDER_KEY, KNOWN_PROVIDERS, PROVIDER_DISPLAY_NAMES  # noqa: E402
 from scraper import (  # noqa: E402
     AccountResult,
     ConfigError,
@@ -214,3 +215,41 @@ def test_resolve_fill_value_falls_back_to_value_env(monkeypatch):
     monkeypatch.setenv("TEST_ACCOUNT_USERNAME", "from-env")
     step = LoginStep(action="fill", selector="#x", value_env="TEST_ACCOUNT_USERNAME")
     assert _resolve_fill_value(step, {}) == "from-env"
+
+
+# --- providers.py: every known provider must be a valid, complete account
+
+
+@pytest.mark.parametrize("key", list(KNOWN_PROVIDERS))
+def test_known_provider_profile_parses_into_a_valid_account(key):
+    profile = KNOWN_PROVIDERS[key]
+    account = parse_account({**profile, "id": key, "name": "Test Account"})
+    assert account.login_url
+    assert account.logged_in_selector
+    assert account.fields
+
+
+@pytest.mark.parametrize("key", list(KNOWN_PROVIDERS))
+def test_known_provider_profile_needs_exactly_username_and_password(key):
+    profile = KNOWN_PROVIDERS[key]
+    account = parse_account({**profile, "id": key, "name": "Test Account"})
+    assert credentials_needed([account]) == {key: ["password", "username"]}
+
+
+def test_every_known_provider_has_a_display_name():
+    assert set(KNOWN_PROVIDERS) == set(PROVIDER_DISPLAY_NAMES)
+
+
+def test_custom_provider_key_is_not_a_known_provider():
+    assert CUSTOM_PROVIDER_KEY not in KNOWN_PROVIDERS
+
+
+def test_known_provider_profile_is_not_mutated_by_building_an_account():
+    import copy
+
+    key = "lg_workplace_pension"
+    before = copy.deepcopy(KNOWN_PROVIDERS[key])
+    data = {**copy.deepcopy(KNOWN_PROVIDERS[key]), "id": key, "name": "Test Account"}
+    parse_account(data)
+    data["login_steps"].append({"action": "click", "selector": "#tampered"})
+    assert KNOWN_PROVIDERS[key] == before

@@ -4,14 +4,18 @@ No file involved - one config entry is built entirely through this
 wizard and represents exactly one account. Add the integration again
 for each additional pension/policy.
 
-Steps: "user" (account basics + schedule) -> "login_step" (repeated
-once per step in the login flow) -> "field" (repeated once per value
-to read) -> "credentials" (only if any login step needs one, built
-from exactly what's needed) -> entry created.
+First step is always "user": pick a known provider (just name +
+username + password from here, via "known_provider" - everything
+else is hardcoded in providers.py) or "Custom / other provider",
+which falls through to the generic wizard: "custom_basics" (account
+basics + schedule) -> "login_step" (repeated once per step in the
+login flow) -> "field" (repeated once per value to read) ->
+"credentials" (only if any login step needs one) -> entry created.
 """
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any
 
@@ -32,11 +36,20 @@ from .const import (
     FIELD_EXTRACTION_METHODS,
     FILL_VALUE_SOURCES,
 )
+from .providers import CUSTOM_PROVIDER_KEY, KNOWN_PROVIDERS, PROVIDER_DISPLAY_NAMES
 from .scraper import ConfigError, credentials_needed, parse_account
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_SCHEMA = vol.Schema(
+STEP_PROVIDER_SCHEMA = vol.Schema(
+    {
+        vol.Required("provider_key", default=CUSTOM_PROVIDER_KEY): vol.In(
+            {**PROVIDER_DISPLAY_NAMES, CUSTOM_PROVIDER_KEY: "Custom / other provider"}
+        ),
+    }
+)
+
+STEP_CUSTOM_BASICS_SCHEMA = vol.Schema(
     {
         vol.Required("name"): str,
         vol.Required("provider"): str,
@@ -123,6 +136,18 @@ def _credentials_schema(names: list[str]) -> vol.Schema:
     return vol.Schema(fields)
 
 
+def _known_provider_schema(default_name: str) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required("name", default=default_name): str,
+            vol.Required("username"): str,
+            vol.Required("password"): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+            vol.Optional(CONF_PROFILE_DIR, default=DEFAULT_PROFILE_DIR): str,
+            vol.Optional(CONF_SCAN_INTERVAL_HOURS, default=DEFAULT_SCAN_INTERVAL_HOURS): int,
+        }
+    )
+
+
 class PolicyTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Policy Tracker - one account per entry."""
 
@@ -131,8 +156,48 @@ class PolicyTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
         self._credential_names: list[str] = []
+        self._provider_key: str = CUSTOM_PROVIDER_KEY
+
+    # --- provider choice -------------------------------------------------
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            self._provider_key = user_input["provider_key"]
+            if self._provider_key == CUSTOM_PROVIDER_KEY:
+                return await self.async_step_custom_basics()
+            return await self.async_step_known_provider()
+
+        return self.async_show_form(step_id="user", data_schema=STEP_PROVIDER_SCHEMA)
+
+    # --- known provider: just name + credentials --------------------------
+
+    async def async_step_known_provider(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        profile = KNOWN_PROVIDERS[self._provider_key]
+
+        if user_input is not None:
+            data = {
+                **copy.deepcopy(profile),
+                "name": user_input["name"],
+                CONF_PROFILE_DIR: user_input[CONF_PROFILE_DIR],
+                CONF_SCAN_INTERVAL_HOURS: user_input[CONF_SCAN_INTERVAL_HOURS],
+                CONF_CREDENTIALS: {"username": user_input["username"], "password": user_input["password"]},
+            }
+            try:
+                parse_account({**data, "id": "pending"})
+            except ConfigError as exc:
+                _LOGGER.error("built-in provider profile %r is invalid: %s", self._provider_key, exc)
+                return self.async_abort(reason="unknown")
+            return self.async_create_entry(title=data["name"], data=data)
+
+        return self.async_show_form(
+            step_id="known_provider",
+            data_schema=_known_provider_schema(PROVIDER_DISPLAY_NAMES[self._provider_key]),
+            description_placeholders={"provider": PROVIDER_DISPLAY_NAMES[self._provider_key]},
+        )
+
+    # --- custom provider: the full generic wizard -------------------------
+
+    async def async_step_custom_basics(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self._data = {
                 **user_input,
@@ -143,7 +208,7 @@ class PolicyTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
             return await self.async_step_login_step()
 
-        return self.async_show_form(step_id="user", data_schema=STEP_USER_SCHEMA)
+        return self.async_show_form(step_id="custom_basics", data_schema=STEP_CUSTOM_BASICS_SCHEMA)
 
     async def async_step_login_step(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         errors: dict[str, str] = {}

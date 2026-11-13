@@ -3,7 +3,25 @@
     "step": {
       "user": {
         "title": "Add a pension or policy account",
-        "description": "This sets up one account. Add the integration again for each additional pension/policy. Start with the login page's URL and the CSS selector for something that only appears once you're logged in.",
+        "description": "Pick a known provider for a quick setup (just a name and your login), or Custom to build the login flow yourself step by step. Add the integration again for each additional pension/policy.",
+        "data": {
+          "provider_key": "Provider"
+        }
+      },
+      "known_provider": {
+        "title": "Account login",
+        "description": "Enter a name for this account and your {provider} login. These are stored in Home Assistant's own config entry storage, not in any file.",
+        "data": {
+          "name": "Account name",
+          "username": "Email address or User ID",
+          "password": "Password",
+          "profile_dir": "Directory for persistent browser profiles",
+          "scan_interval_hours": "Hours between scrapes"
+        }
+      },
+      "custom_basics": {
+        "title": "Add a pension or policy account",
+        "description": "This sets up one account. Start with the login page's URL and the CSS selector for something that only appears once you're logged in.",
         "data": {
           "name": "Account name",
           "provider": "Provider",

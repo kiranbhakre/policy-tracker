@@ -78,7 +78,26 @@ each additional pension/policy.
 [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=policy_tracker)
 
 or by hand: Settings > Devices & services > Add integration > search
-"Policy Tracker". The wizard has up to four screens:
+"Policy Tracker". First screen: pick a provider.
+
+**Known provider (quick).** A provider in [providers.py](providers.py)
+has its login flow, selectors, and fields already written into the
+code - the only screen left asks for a name, your email/User ID, and
+password. Currently built in:
+
+- **Legal & General - Workplace Pension** - login URL, the identifier
+  field, and the logged-in marker were confirmed by directly
+  inspecting `myaccount.landg.com`. The password field's selector
+  **is an educated guess, not confirmed** - L&G's login is a
+  multi-step journey and the password page was never actually seen
+  (that needs real credentials, which this project never enters on
+  your behalf). If this account's status sensor ends up `error`
+  rather than `ok`, that selector in `providers.py` is the first
+  thing to fix - it's a plain Python dict, easier to correct than
+  re-discovering through the UI.
+
+**Custom / other provider.** Falls through to the full generic
+wizard - up to four more screens:
 
 1. **Account basics** - name, provider, type, login page URL,
    optional separate values page URL, a CSS selector confirming
@@ -101,6 +120,11 @@ Each screen validates what it collected before letting you continue -
 e.g. a `fill` step with no selector, or a field with neither a label
 nor a selector, shows an error in place rather than failing silently
 later.
+
+Once an account's selectors are confirmed working end to end, it's
+worth adding it to `providers.py` as a known provider - future
+accounts with the same provider (yours or anyone else using this
+integration) skip the generic wizard entirely.
 
 This creates one device for the account, with:
 
