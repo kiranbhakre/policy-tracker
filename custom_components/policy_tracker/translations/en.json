@@ -1,0 +1,19 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Policy Tracker",
+        "description": "Point this at an accounts YAML file (same format as the standalone tracker.py's config.yaml) describing which pension/policy portals to scrape.",
+        "data": {
+          "accounts_file": "Path to accounts YAML file",
+          "profile_dir": "Directory for persistent browser profiles",
+          "scan_interval_hours": "Hours between scrapes"
+        }
+      }
+    },
+    "error": {
+      "invalid_accounts_file": "That file could not be parsed as a valid accounts config.",
+      "accounts_file_not_found": "That file could not be found or read."
+    }
+  }
+}

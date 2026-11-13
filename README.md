@@ -9,6 +9,19 @@ discovery.
 **Check each provider's terms of use before relying on this for an
 account.** Automated logins may conflict with some providers' terms.
 
+There are two ways to run this - pick one:
+
+1. **Standalone script + MQTT** (below): `tracker.py` runs on the Pi
+   under a systemd timer and publishes over MQTT discovery. Works
+   anywhere, including Home Assistant OS.
+2. **Native Home Assistant integration**:
+   [custom_components/policy_tracker](custom_components/policy_tracker)
+   - a real integration with its own config flow and sensors, loaded
+   directly by Home Assistant. Requires an HA install where you can
+   install the Chromium browser binary yourself (not HAOS/Supervised)
+   - see [its README](custom_components/policy_tracker/README.md) for
+   why and how.
+
 ## How it fits together
 
 - [tracker.py](tracker.py) - reads `config.yaml`, logs into each
@@ -144,5 +157,12 @@ python3 -m pytest tests/ -v
 ```
 
 Covers amount parsing, label-based extraction, and config validation
-in `tracker.py`, and MQTT discovery/state message construction in
-`ha_mqtt.py`. These are pure unit tests - no browser or broker needed.
+in `tracker.py`, MQTT discovery/state message construction in
+`ha_mqtt.py`, and the same parsing/config logic plus the
+last-good-value merge rule in the native integration's
+`custom_components/policy_tracker/scraper.py`. These are pure unit
+tests - no browser or broker needed, and no `homeassistant` package
+dependency either (the integration's HA-framework-specific files -
+`coordinator.py`, `config_flow.py`, `__init__.py`, `sensor.py` - do
+need `homeassistant` installed to import; see
+[its README](custom_components/policy_tracker/README.md)).

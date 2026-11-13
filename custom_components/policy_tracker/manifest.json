@@ -1,0 +1,12 @@
+{
+  "domain": "policy_tracker",
+  "name": "Policy Tracker",
+  "codeowners": ["@kiranbhakre"],
+  "config_flow": true,
+  "documentation": "https://github.com/kiranbhakre/policy-tracker/blob/main/custom_components/policy_tracker/README.md",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/kiranbhakre/policy-tracker/issues",
+  "requirements": ["playwright==1.65.1", "PyYAML>=6"],
+  "version": "0.1.0"
+}
