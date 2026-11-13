@@ -1,0 +1,24 @@
+# Runs one headless pass over every account in config.yaml.
+# Triggered by policy-tracker.timer - not meant to be enabled directly.
+#
+# Install:
+#   sudo cp systemd/policy-tracker.* /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now policy-tracker.timer
+#
+# Edit the paths and User= below to match your install location.
+
+[Unit]
+Description=policy-tracker: scrape pension/policy values and publish to Home Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/policy-tracker
+EnvironmentFile=/home/pi/policy-tracker/.env
+ExecStart=/home/pi/policy-tracker/.venv/bin/python3 /home/pi/policy-tracker/tracker.py --config /home/pi/policy-tracker/config.yaml
+
+# Credentials live only in .env (chmod 600) - never add Environment=
+# lines with secrets here, since unit files are world-readable.

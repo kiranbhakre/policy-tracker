@@ -1,0 +1,37 @@
+# Lovelace card snippet for the policy-tracker package.
+#
+# Paste into a dashboard view's `cards:` list (dashboard edit menu >
+# "Edit in YAML", or the Raw configuration editor for the whole
+# dashboard). Both cards below are built-in Lovelace card types, so
+# they inherit whatever theme is active on the dashboard (e.g. a dark
+# Aether theme) with no per-card color overrides needed.
+#
+# Replace the entity ids below with your own accounts/fields once
+# ha_mqtt.py has published discovery for them: Settings > Devices &
+# services > Entities, filter by "policy_tracker".
+
+- type: entities
+  title: Pensions & Policies
+  state_color: true
+  entities:
+    - entity: sensor.policy_tracker_total_value
+      name: Total value
+      icon: mdi:cash-multiple
+    - type: divider
+    - entity: sensor.policy_tracker_lg_pension_fund_value
+      name: L&G Pension - fund value
+    - entity: sensor.policy_tracker_lg_pension_status
+      name: L&G Pension - status
+    - entity: sensor.policy_tracker_lg_pension_last_updated
+      name: L&G Pension - last updated
+
+- type: statistics-graph
+  title: Value over time
+  chart_type: line
+  period: day
+  days_to_show: 365
+  stat_types:
+    - mean
+  entities:
+    - sensor.policy_tracker_total_value
+    - sensor.policy_tracker_lg_pension_fund_value

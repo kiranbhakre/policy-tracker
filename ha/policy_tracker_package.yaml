@@ -1,0 +1,84 @@
+# Home Assistant package: policy-tracker aggregation and alerting.
+#
+# Install: copy this file into Home Assistant's packages directory and
+# restart Home Assistant. If you do not already use packages, add this
+# to configuration.yaml first:
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# then place this file at config/packages/policy_tracker_package.yaml.
+#
+# Assumes every policy-tracker sensor is published via MQTT discovery
+# with an object_id of the form policy_tracker_<account_id>_<field_id>,
+# as produced by ha_mqtt.py. Monetary value sensors are matched by
+# device_class rather than listed by name, so new accounts and fields
+# are picked up automatically without editing this file.
+
+template:
+  - sensor:
+      - name: "Policy Tracker Total Value"
+        unique_id: policy_tracker_total_value
+        unit_of_measurement: "GBP"
+        device_class: monetary
+        state_class: total
+        icon: mdi:cash-multiple
+        state: >
+          {{ states.sensor
+             | selectattr('entity_id', 'match', '^sensor\.policy_tracker_')
+             | rejectattr('entity_id', 'eq', 'sensor.policy_tracker_total_value')
+             | selectattr('attributes.device_class', 'defined')
+             | selectattr('attributes.device_class', 'eq', 'monetary')
+             | map(attribute='state')
+             | select('is_number')
+             | map('float')
+             | sum
+             | round(2) }}
+
+      - name: "Policy Tracker Accounts With Problems"
+        unique_id: policy_tracker_problem_accounts
+        state: >
+          {{ states.sensor
+             | selectattr('entity_id', 'match', '^sensor\.policy_tracker_.*_status$')
+             | selectattr('state', 'in', ['otp_required', 'error'])
+             | list | count }}
+
+automation:
+  - alias: "Policy Tracker - account needs attention"
+    id: policy_tracker_account_needs_attention
+    description: >
+      Notifies when any policy-tracker status sensor reports
+      otp_required or error, and says which command fixes it.
+    trigger:
+      - platform: template
+        value_template: >
+          {{ states('sensor.policy_tracker_problem_accounts') | int(0) > 0 }}
+    condition: []
+    action:
+      - variables:
+          problem_sensors: >
+            {{ states.sensor
+               | selectattr('entity_id', 'match', '^sensor\.policy_tracker_.*_status$')
+               | selectattr('state', 'in', ['otp_required', 'error'])
+               | list }}
+      - repeat:
+          for_each: "{{ problem_sensors }}"
+          sequence:
+            - variables:
+                account_id: >
+                  {{ repeat.item.entity_id
+                     | replace('sensor.policy_tracker_', '')
+                     | replace('_status', '') }}
+            - service: persistent_notification.create
+              data:
+                title: "Policy Tracker: {{ repeat.item.attributes.friendly_name }}"
+                message: >
+                  {% if repeat.item.state == 'otp_required' %}
+                  A one-time code is needed. On the Pi, run:
+                  `python3 tracker.py --interactive {{ account_id }}`
+                  {% else %}
+                  The last run failed. Check the service log:
+                  `journalctl -u policy-tracker.service -n 50`
+                  {% endif %}
+                notification_id: "policy_tracker_{{ account_id }}"
+    mode: single

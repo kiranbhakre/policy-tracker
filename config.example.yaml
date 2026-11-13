@@ -1,0 +1,90 @@
+# policy-tracker accounts config.
+#
+# Copy this file to config.yaml and fill in real values. Every
+# selector below is a PLACEHOLDER - the real sign-in form fields and
+# value labels differ per provider and are not known in advance. Use
+# `python3 tracker.py --interactive <id>` to log in once and
+# `python3 tracker.py --discover <id>` to find the real labels/selectors
+# for each provider, then edit them in here.
+#
+# Credentials are never written here - login steps reference an
+# environment variable (value_env) which is read from .env at run
+# time. See .env.example.
+
+# Base directory for persistent Chromium profiles, one subfolder per
+# account, so cookies survive between runs.
+profile_dir: "./profiles"
+
+accounts:
+  # --- Legal & General workplace pension -----------------------------
+  - id: lg_pension
+    name: "L&G Workplace Pension"
+    provider: "Legal & General"
+    type: pension
+
+    login_url: "https://www.landg.com/REPLACE_WITH_REAL_LOGIN_PATH"
+
+    # Optional: navigate here after login if the valuation isn't on
+    # the page you land on. Omit this key to stay on that page.
+    values_url: "https://www.landg.com/REPLACE_WITH_REAL_VALUATION_PATH"
+
+    login_steps:
+      - action: fill
+        selector: "#REPLACE_WITH_USERNAME_FIELD_SELECTOR"
+        value_env: LG_PENSION_USERNAME
+      - action: fill
+        selector: "#REPLACE_WITH_PASSWORD_FIELD_SELECTOR"
+        value_env: LG_PENSION_PASSWORD
+      - action: click
+        selector: "#REPLACE_WITH_SIGN_IN_BUTTON_SELECTOR"
+      - action: wait
+        selector: "#REPLACE_WITH_SOMETHING_THAT_APPEARS_AFTER_LOGIN"
+        timeout_ms: 15000
+
+    # Selector that appears only when a one-time code is being asked
+    # for. Leave unset if this provider never uses one.
+    otp_selector: "#REPLACE_WITH_OTP_INPUT_SELECTOR"
+
+    # Selector that confirms a successful login (e.g. an account
+    # summary heading, or a "Log out" link).
+    logged_in_selector: "#REPLACE_WITH_LOGGED_IN_MARKER_SELECTOR"
+
+    fields:
+      # Label-based: finds the first GBP amount after this text.
+      # Prefer labels over selectors - they usually survive provider
+      # redesigns better than CSS selectors do.
+      - id: fund_value
+        label: "Total fund value"
+      - id: transfer_value
+        label: "Transfer value"
+
+  # --- A second provider, to show a selector-based field --------------
+  - id: example_life_policy
+    name: "Example Life Investment Policy"
+    provider: "Example Life"
+    type: policy
+
+    login_url: "https://example-life.invalid/REPLACE_WITH_REAL_LOGIN_PATH"
+
+    login_steps:
+      - action: fill
+        selector: "#REPLACE_WITH_USERNAME_FIELD_SELECTOR"
+        value_env: EXAMPLE_LIFE_USERNAME
+      - action: fill
+        selector: "#REPLACE_WITH_PASSWORD_FIELD_SELECTOR"
+        value_env: EXAMPLE_LIFE_PASSWORD
+      - action: click
+        selector: "#REPLACE_WITH_SIGN_IN_BUTTON_SELECTOR"
+      - action: wait
+        wait_ms: 3000
+
+    otp_selector: "#REPLACE_WITH_OTP_INPUT_SELECTOR"
+    logged_in_selector: "#REPLACE_WITH_LOGGED_IN_MARKER_SELECTOR"
+
+    fields:
+      # Selector-based: reads the text of this element directly,
+      # rather than searching for a label. Use this when a value sits
+      # in a predictable, stable element (e.g. a dedicated balance
+      # widget) with no reliable preceding label text.
+      - id: surrender_value
+        selector: ".REPLACE_WITH_BALANCE_WIDGET_CLASS .amount"

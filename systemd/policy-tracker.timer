@@ -1,0 +1,13 @@
+# Runs policy-tracker.service weekly, at a randomised time so every
+# account isn't hit at exactly the same moment each week.
+
+[Unit]
+Description=Weekly schedule for policy-tracker
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
