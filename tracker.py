@@ -10,7 +10,7 @@ Usage:
     python3 tracker.py                        headless run over every account in config.yaml
     python3 tracker.py --config path.yaml     use a different config file
     python3 tracker.py --interactive ACCOUNT  open a visible browser to log in (handles an OTP) and save the session
-    python3 tracker.py --discover ACCOUNT     log in and print every line with a GBP amount, to help pick field labels
+    python3 tracker.py --discover ACCOUNT     log in and print GBP amounts + data-testid selectors, to help pick labels/selectors
 
 Credentials are read only from environment variables (see .env.example)
 and are never written to the config file or logged.
@@ -48,6 +48,20 @@ DEFAULT_PROFILE_DIR = "./profiles"
 # currency marker (rather than any number) avoids picking up unrelated
 # figures like dates or account numbers on the same page.
 GBP_AMOUNT_RE = re.compile(r"(?:£|GBP\s?)\s?(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?)")
+
+# JS evaluated in the page by --discover to list every element with a
+# data-testid attribute. Many sites (seen first-hand on L&G's own My
+# Account) use these for their own test suites, and they tend to
+# survive redesigns far better than auto-generated CSS classes do.
+_DATA_TESTID_JS = """
+() => Array.from(document.querySelectorAll('[data-testid]')).map((el) => ({
+    testid: el.getAttribute('data-testid'),
+    tag: el.tagName.toLowerCase(),
+    text: el.textContent.trim().slice(0, 60),
+}))
+"""
+
+LOGOUT_KEYWORDS = ("logout", "log out", "sign out", "signout", "log-out")
 
 
 class ConfigError(Exception):
@@ -419,8 +433,33 @@ def run_interactive(account: TrackerAccount, profile_dir: str) -> None:
         print(f"Published {len(values)} field(s) to Home Assistant.")
 
 
+def find_data_testid_elements(page: Page) -> list[dict]:
+    """Every element on the page with a data-testid attribute."""
+    return page.evaluate(_DATA_TESTID_JS)
+
+
+def filter_logout_candidates(testid_elements: list[dict]) -> list[dict]:
+    """Elements whose testid or text looks like a logout/sign-out control.
+
+    These are good logged_in_selector candidates - something that
+    exists only once you're authenticated, unlike most other
+    elements on a page.
+    """
+    return [
+        el
+        for el in testid_elements
+        if any(keyword in el["testid"].lower() or keyword in el["text"].lower() for keyword in LOGOUT_KEYWORDS)
+    ]
+
+
 def run_discover(account: TrackerAccount, profile_dir: str) -> None:
-    """Log in and print every line containing a GBP amount, with context.
+    """Log in and print page structure to help pick labels and selectors.
+
+    Prints every line containing a GBP amount (with the line before
+    it, for label-based fields), then every element on the page with
+    a data-testid attribute - often a far more stable selector than
+    an auto-generated CSS class - and which of those look like a
+    logout/sign-out control, a good candidate for logged_in_selector.
 
     Requires an already-established session (run --interactive first if
     this account needs a one-time code) since this runs headless.
@@ -441,11 +480,26 @@ def run_discover(account: TrackerAccount, profile_dir: str) -> None:
 
         body_text = page.inner_text("body")
         pairs = lines_with_gbp_amounts(body_text)
-        if not pairs:
+        if pairs:
+            print("Lines containing a GBP amount:")
+            for prev_line, line in pairs:
+                print(f"  {prev_line!r} -> {line!r}")
+        else:
             print("No GBP amounts found on this page.")
+
+        testid_elements = find_data_testid_elements(page)
+        if not testid_elements:
             return
-        for prev_line, line in pairs:
-            print(f"{prev_line!r} -> {line!r}")
+
+        print("\nElements with a data-testid attribute (often a more stable selector than a CSS class):")
+        for el in testid_elements:
+            print(f"  [data-testid=\"{el['testid']}\"]  <{el['tag']}>  {el['text']!r}")
+
+        logout_candidates = filter_logout_candidates(testid_elements)
+        if logout_candidates:
+            print("\nPossible logged_in_selector candidates (logout/sign-out related):")
+            for el in logout_candidates:
+                print(f"  [data-testid=\"{el['testid']}\"]  <{el['tag']}>  {el['text']!r}")
 
 
 # --- CLI ----------------------------------------------------------------
@@ -455,7 +509,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", default=DEFAULT_CONFIG_PATH, help="path to the accounts config file")
     parser.add_argument("--interactive", metavar="ACCOUNT_ID", help="log in visibly for one account (handles an OTP)")
-    parser.add_argument("--discover", metavar="ACCOUNT_ID", help="print GBP amounts on the page, to help pick labels")
+    parser.add_argument(
+        "--discover", metavar="ACCOUNT_ID", help="print GBP amounts and data-testid selectors, to help pick labels/selectors"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

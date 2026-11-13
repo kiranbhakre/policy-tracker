@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tracker import (
     ConfigError,
+    filter_logout_candidates,
     find_gbp_amount_after_label,
     find_raw_account,
     lines_with_gbp_amounts,
@@ -187,3 +188,29 @@ def test_find_raw_account_returns_matching_entry():
 def test_find_raw_account_raises_for_unknown_id():
     with pytest.raises(ConfigError, match="unknown_id"):
         find_raw_account([{"id": "a"}], "unknown_id")
+
+
+# --- filter_logout_candidates -------------------------------------------
+
+
+def test_filter_logout_candidates_matches_on_testid():
+    elements = [
+        {"testid": "logout-nav-link", "tag": "button", "text": "Sign out"},
+        {"testid": "product__name", "tag": "h3", "text": "Workplace Pension"},
+    ]
+    assert filter_logout_candidates(elements) == [elements[0]]
+
+
+def test_filter_logout_candidates_matches_on_text_when_testid_is_generic():
+    elements = [{"testid": "nav-item-7", "tag": "a", "text": "Log out"}]
+    assert filter_logout_candidates(elements) == elements
+
+
+def test_filter_logout_candidates_matches_case_insensitively():
+    elements = [{"testid": "LOGOUT-BUTTON", "tag": "button", "text": ""}]
+    assert filter_logout_candidates(elements) == elements
+
+
+def test_filter_logout_candidates_returns_empty_when_nothing_matches():
+    elements = [{"testid": "product__name", "tag": "h3", "text": "Workplace Pension"}]
+    assert filter_logout_candidates(elements) == []

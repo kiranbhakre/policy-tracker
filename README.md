@@ -93,6 +93,21 @@ selectors are placeholders (see "Adding a new provider" below).
    "Total fund value"` (or a CSS `selector:` if you'd rather target a
    specific element).
 
+   It also lists every element on the page with a `data-testid`
+   attribute, if the site uses them - these tend to survive redesigns
+   far better than auto-generated CSS classes do, and whichever of
+   them look like a logout/sign-out control are called out
+   separately as `logged_in_selector` candidates:
+
+   ```text
+   Elements with a data-testid attribute (often a more stable selector than a CSS class):
+     [data-testid="logout-nav-link"]  <button>  'Log out'
+     [data-testid="product__name"]  <h3>  'Workplace Pension'
+
+   Possible logged_in_selector candidates (logout/sign-out related):
+     [data-testid="logout-nav-link"]  <button>  'Log out'
+   ```
+
 3. Run a normal headless pass:
 
    ```bash
