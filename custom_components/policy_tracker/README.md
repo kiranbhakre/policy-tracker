@@ -35,28 +35,24 @@ inside Home Assistant, so it has no such restriction.
 
 ### Step 1: get the integration's files into Home Assistant
 
-**HACS (now built into Home Assistant as "the Marketplace", as of HA
-2026.11) cannot be used at all with this repo while it stays private.**
-Per HACS's own FAQ: "Private GitHub repositories can not be used with
-HACS at all" - "HACS can only get publicly available information."
-This isn't a missing-token problem; there is no supported way to add a
-private repo, with or without a personal access token. (An earlier
-version of this README incorrectly suggested adding a token would fix
-it - it won't. See [hacs.xyz/faq/private_repositories](https://hacs.xyz/faq/private_repositories/).)
+This repo is public, so HACS (now built into Home Assistant as "the
+Marketplace", as of HA 2026.11) can fetch it directly. Pick one:
 
-So, while this repo is private, install by copying the files by hand:
-
-Copy this `custom_components/policy_tracker` folder into your Home
-Assistant config's `custom_components/policy_tracker` (scp, Samba
-share, whatever you'd normally use to get files onto the Pi/HA host).
-
-If you ever decide to make this repo public - weighing that the
-scraping *code* would be visible, though credentials never are (see
-"Credentials" below) - then the Marketplace/HACS "add custom
-repository" button and the `hacs.json` already in this repo's root
-would work normally:
+**Option A - HACS/Marketplace.**
 
 [![Add repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=kiranbhakre&repository=policy-tracker&category=integration)
+
+or, in HACS/Marketplace, the three-dot menu > Custom repositories > add
+`https://github.com/kiranbhakre/policy-tracker` as category
+"Integration". Then find "Policy Tracker" and install it - it copies
+`custom_components/policy_tracker` into your config and handles
+updates afterwards. (Had this repo still been private, none of this
+would work at all - per HACS's own FAQ, "Private GitHub repositories
+can not be used with HACS at all," no token gets around that. See
+[hacs.xyz/faq/private_repositories](https://hacs.xyz/faq/private_repositories/).)
+
+**Option B - copy by hand.** Copy this `custom_components/policy_tracker`
+folder into your Home Assistant config's `custom_components/policy_tracker`.
 
 > The My Home Assistant buttons here (and in Step 3) open your own
 > running Home Assistant directly, skipping manual navigation - they
