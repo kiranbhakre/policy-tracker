@@ -35,29 +35,35 @@ inside Home Assistant, so it has no such restriction.
 
 ### Step 1: get the integration's files into Home Assistant
 
-Pick one:
+**HACS (now built into Home Assistant as "the Marketplace", as of HA
+2026.11) cannot be used at all with this repo while it stays private.**
+Per HACS's own FAQ: "Private GitHub repositories can not be used with
+HACS at all" - "HACS can only get publicly available information."
+This isn't a missing-token problem; there is no supported way to add a
+private repo, with or without a personal access token. (An earlier
+version of this README incorrectly suggested adding a token would fix
+it - it won't. See [hacs.xyz/faq/private_repositories](https://hacs.xyz/faq/private_repositories/).)
 
-**Option A - HACS (recommended if you already use it).** This repo is
-private, so HACS needs a GitHub token with access to it - add one
-under HACS > Settings first if you haven't. Then either click:
+So, while this repo is private, install by copying the files by hand:
+
+Copy this `custom_components/policy_tracker` folder into your Home
+Assistant config's `custom_components/policy_tracker` (scp, Samba
+share, whatever you'd normally use to get files onto the Pi/HA host).
+
+If you ever decide to make this repo public - weighing that the
+scraping *code* would be visible, though credentials never are (see
+"Credentials" below) - then the Marketplace/HACS "add custom
+repository" button and the `hacs.json` already in this repo's root
+would work normally:
 
 [![Add repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=kiranbhakre&repository=policy-tracker&category=integration)
 
-or, in HACS, the three-dot menu > Custom repositories > add
-`https://github.com/kiranbhakre/policy-tracker` as category
-"Integration". Then find "Policy Tracker" in HACS and install it -
-HACS copies `custom_components/policy_tracker` into your config for
-you, and handles updates afterwards.
-
-> The My Home Assistant button above (and the one in Step 3) opens
-> your own running Home Assistant directly, skipping manual
-> navigation - it works once you've visited
+> The My Home Assistant buttons here (and in Step 3) open your own
+> running Home Assistant directly, skipping manual navigation - they
+> work once you've visited
 > [my.home-assistant.io](https://my.home-assistant.io) from a browser
 > that can also reach your instance, which most setups already are.
-> It does not open anyone else's Home Assistant.
-
-**Option B - copy by hand.** Copy this `custom_components/policy_tracker`
-folder into your Home Assistant config's `custom_components/policy_tracker`.
+> They do not open anyone else's Home Assistant.
 
 ### Step 2: restart, then install Chromium
 
