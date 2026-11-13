@@ -33,25 +33,57 @@ inside Home Assistant, so it has no such restriction.
 
 ## Installing
 
-1. Copy this `custom_components/policy_tracker` folder into your Home
-   Assistant config's `custom_components/policy_tracker`.
-2. Restart Home Assistant so it picks up the new integration and
-   installs the `playwright` and `PyYAML` Python packages from
-   `manifest.json`.
-3. Separately run `playwright install --with-deps chromium` inside
-   Home Assistant's own Python environment (see the caveat above -
-   this step is why this integration doesn't work everywhere).
-4. Settings > Devices & services > Add integration > search "Policy
-   Tracker".
-5. Provide:
-   - **Path to accounts YAML file** - the exact same format as the
-     standalone script's `config.yaml` (see
-     [config.example.yaml](../../config.example.yaml)): one entry per
-     account with its login steps, OTP/logged-in selectors, and
-     fields.
-   - **Directory for persistent browser profiles** - where Chromium's
-     per-account session cookies are stored.
-   - **Hours between scrapes** - defaults to 168 (weekly).
+### Step 1: get the integration's files into Home Assistant
+
+Pick one:
+
+**Option A - HACS (recommended if you already use it).** This repo is
+private, so HACS needs a GitHub token with access to it - add one
+under HACS > Settings first if you haven't. Then either click:
+
+[![Add repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=kiranbhakre&repository=policy-tracker&category=integration)
+
+or, in HACS, the three-dot menu > Custom repositories > add
+`https://github.com/kiranbhakre/policy-tracker` as category
+"Integration". Then find "Policy Tracker" in HACS and install it -
+HACS copies `custom_components/policy_tracker` into your config for
+you, and handles updates afterwards.
+
+> The My Home Assistant button above (and the one in Step 3) opens
+> your own running Home Assistant directly, skipping manual
+> navigation - it works once you've visited
+> [my.home-assistant.io](https://my.home-assistant.io) from a browser
+> that can also reach your instance, which most setups already are.
+> It does not open anyone else's Home Assistant.
+
+**Option B - copy by hand.** Copy this `custom_components/policy_tracker`
+folder into your Home Assistant config's `custom_components/policy_tracker`.
+
+### Step 2: restart, then install Chromium
+
+Restart Home Assistant so it picks up the new integration and installs
+the `playwright` and `PyYAML` Python packages from `manifest.json`.
+Then separately run `playwright install --with-deps chromium` inside
+Home Assistant's own Python environment (see the caveat above - this
+step is why this integration doesn't work everywhere).
+
+### Step 3: add the integration
+
+[![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=policy_tracker)
+
+or by hand: Settings > Devices & services > Add integration > search
+"Policy Tracker". Provide:
+
+- **Path to accounts YAML file** - the exact same format as the
+  standalone script's `config.yaml` (see
+  [config.example.yaml](../../config.example.yaml)): one entry per
+  account with its login steps, OTP/logged-in selectors, and fields.
+- **Directory for persistent browser profiles** - where Chromium's
+  per-account session cookies are stored.
+- **Hours between scrapes** - defaults to 168 (weekly).
+
+If the accounts file can't be read or doesn't parse, the form shows an
+error in place rather than failing silently.
 
 This creates one device per account, with:
 
